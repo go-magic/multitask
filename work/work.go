@@ -23,6 +23,7 @@ func (w work) Start() {
 
 func (w work) check(request task.Request) {
 	response := task.Response{}
+	response.Parser = request.Parser
 	result, err := request.Handler.Check(request.Task)
 	if err != nil {
 		response.Error = err
