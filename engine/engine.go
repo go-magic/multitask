@@ -22,8 +22,18 @@ func InitEngine(maxRoutine int) {
 	}
 }
 
+func GetEngineInstance() *Engine {
+	return engine
+}
+
 func (e Engine) AddRequest(request task.Request) {
 	go func() {
 		e.requestChan <- request
 	}()
+}
+
+func (e Engine) AddRequests(requests ...task.Request) {
+	for _,request := range requests {
+		e.AddRequest(request)
+	}
 }
