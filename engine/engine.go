@@ -6,16 +6,16 @@ import (
 )
 
 type Engine struct {
-	requestChan chan task.Request
+	requestChan chan *task.Request
 }
 
 var (
 	engine *Engine
 )
 
-func InitEngine(maxRoutine int) {
+func InitEngine(maxRoutine int, maxTask int) {
 	engine = &Engine{}
-	engine.requestChan = make(chan task.Request, 10)
+	engine.requestChan = make(chan *task.Request, maxTask)
 	for i := 0; i < maxRoutine; i++ {
 		w := work.NewWork(engine.requestChan)
 		go w.Start()
@@ -26,14 +26,14 @@ func GetEngineInstance() *Engine {
 	return engine
 }
 
-func (e Engine) AddRequest(request task.Request) {
+func (e Engine) AddRequest(request *task.Request) {
 	go func() {
 		e.requestChan <- request
 	}()
 }
 
-func (e Engine) AddRequests(requests ...task.Request) {
-	for _,request := range requests {
+func (e Engine) AddRequests(requests ...*task.Request) {
+	for _, request := range requests {
 		e.AddRequest(request)
 	}
 }

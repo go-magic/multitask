@@ -1,18 +1,25 @@
 package work
 
-import "github.com/go-magic/multitask/task"
+import (
+	"fmt"
+	"github.com/go-magic/multitask/task"
+)
 
-type work struct {
-	requestChan chan task.Request
+var (
+	HandlerInvalid = fmt.Errorf("handler invalid")
+)
+
+type Work struct {
+	requestChan chan *task.Request
 }
 
-func NewWork(requestChan chan task.Request) *work {
-	return &work{
+func NewWork(requestChan chan *task.Request) *Work {
+	return &Work{
 		requestChan: requestChan,
 	}
 }
 
-func (w work) Start() {
+func (w Work) Start() {
 	for {
 		select {
 		case request := <-w.requestChan:
@@ -21,13 +28,18 @@ func (w work) Start() {
 	}
 }
 
-func (w work) check(request task.Request) {
-	response := task.Response{}
-	response.Parser = request.Parser
+func (w Work) check(request *task.Request) {
+	response := task.NewResponse(request.Parser)
+	defer func() {
+		request.Send(response)
+	}()
+	if request.Handler == nil {
+		response.SetError(HandlerInvalid)
+		return
+	}
 	result, err := request.Handler.Check(request.Task)
 	if err != nil {
-		response.Error = err
+		response.SetError(err)
 	}
-	response.Result = result
-	request.ResponseChan <- response
+	response.SetResult(result)
 }

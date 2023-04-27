@@ -10,6 +10,8 @@ import (
 )
 
 type Http struct {
+	StatusCode int
+	Error      error
 }
 
 type HttpRequest struct {
@@ -25,20 +27,22 @@ type HttpResponse struct {
 	StatusCode int
 }
 
-func (h Http) Check(request interface{}) (interface{}, error) {
+func (h *Http) Check(request interface{}) (interface{}, error) {
 	httpRequest, err := h.parseRequest(request)
 	if err != nil {
 		return nil, err
 	}
 	res, err := http.Get(httpRequest.Url)
 	if err != nil {
+		h.Error = err
 		return nil, err
 	}
+	h.StatusCode = res.StatusCode
 	defer res.Body.Close()
 	return HttpResponse{StatusCode: res.StatusCode}, nil
 }
 
-func (h Http) Parse(totalResponse *TotalResponse) func(interface{}) error {
+func (h *Http) Parse(totalResponse *TotalResponse) func(interface{}) error {
 	return func(response interface{}) error {
 		httpResponse, err := h.parseResponse(response)
 		if err != nil {
@@ -49,7 +53,7 @@ func (h Http) Parse(totalResponse *TotalResponse) func(interface{}) error {
 	}
 }
 
-func (h Http) parseRequest(request interface{}) (*HttpRequest, error) {
+func (h *Http) parseRequest(request interface{}) (*HttpRequest, error) {
 	request1, ok := request.(*HttpRequest)
 	if ok {
 		return request1, nil
@@ -61,7 +65,7 @@ func (h Http) parseRequest(request interface{}) (*HttpRequest, error) {
 	return nil, errors.New("解析任务失败")
 }
 
-func (h Http) parseResponse(response interface{}) (*HttpResponse, error) {
+func (h *Http) parseResponse(response interface{}) (*HttpResponse, error) {
 	response1, ok := response.(*HttpResponse)
 	if ok {
 		return response1, nil
@@ -74,6 +78,7 @@ func (h Http) parseResponse(response interface{}) (*HttpResponse, error) {
 }
 
 type Dns struct {
+	DnsTime int
 }
 
 type DnsRequest struct {
@@ -84,11 +89,11 @@ type DnsResponse struct {
 	DnsTime int
 }
 
-func (d Dns) Check(interface{}) (interface{}, error) {
-	return DnsResponse{DnsTime: 1}, nil
+func (d *Dns) Check(interface{}) (interface{}, error) {
+	return &DnsResponse{DnsTime: 1}, nil
 }
 
-func (d Dns) Parse(totalResponse *TotalResponse) func(interface{}) error {
+func (d *Dns) Parse(totalResponse *TotalResponse) func(interface{}) error {
 	return func(response interface{}) error {
 		httpResponse, err := d.parseResponse(response)
 		if err != nil {
@@ -99,7 +104,7 @@ func (d Dns) Parse(totalResponse *TotalResponse) func(interface{}) error {
 	}
 }
 
-func (d Dns) parseResponse(response interface{}) (*DnsResponse, error) {
+func (d *Dns) parseResponse(response interface{}) (*DnsResponse, error) {
 	response1, ok := response.(*DnsResponse)
 	if ok {
 		return response1, nil
@@ -112,30 +117,29 @@ func (d Dns) parseResponse(response interface{}) (*DnsResponse, error) {
 }
 
 func TestName(t *testing.T) {
-	engine.InitEngine(10)
-	h := Http{}
+	engine.InitEngine(10, 20)
+	h := &Http{}
 	total := &TotalResponse{}
-	httpRequest := HttpRequest{Url: "https://www.qq.com"}
-	responseChan := make(chan task.Response, 2)
-	engine.GetEngineInstance().AddRequest(task.Request{
-		Handler:      h,
-		Task:         httpRequest,
-		Parser:       h.Parse(total),
-		ResponseChan: responseChan,
-	})
-	dns := Dns{}
-	dnsRequest := DnsRequest{Url: "https://www.qq.com"}
-	engine.GetEngineInstance().AddRequest(task.Request{
-		Handler:      dns,
-		Task:         dnsRequest,
-		Parser:       dns.Parse(total),
-		ResponseChan: responseChan,
-	})
+	responseChan := make(chan *task.Response, 2)
+	engine.GetEngineInstance().AddRequest(
+		task.NewRequest(
+			h,
+			HttpRequest{Url: "https://www.baidu.com"},
+			responseChan,
+			h.Parse(total)))
+	dns := &Dns{}
+	engine.GetEngineInstance().AddRequest(
+		task.NewRequest(
+			dns,
+			DnsRequest{Url: "https://www.qq.com"},
+			responseChan,
+			dns.Parse(total)))
 	wait(responseChan)
+	fmt.Println(h.StatusCode)
 	t.Log(total)
 }
 
-func wait(responseChan chan task.Response) {
+func wait(responseChan chan *task.Response) {
 	count := 0
 	for {
 		select {
@@ -144,6 +148,7 @@ func wait(responseChan chan task.Response) {
 			if err := response.Parser(response.Result); err != nil {
 				fmt.Println(err)
 			}
+			fmt.Println(response)
 			if count == 2 {
 				return
 			}
