@@ -42,8 +42,10 @@ func wait(wc int, responseChan chan *task.Response) {
 		select {
 		case response := <-responseChan:
 			wc--
-			if err := response.Parser(response.Result); err != nil {
-				fmt.Println(err)
+			if response.Parser != nil {
+				if err := response.Parser(response.Result); err != nil {
+					fmt.Println(err)
+				}
 			}
 			fmt.Println(response)
 			if wc == 0 {
