@@ -38,8 +38,6 @@ func (w Work) check(request *task.Request) {
 		return
 	}
 	result, err := request.Handler.Check(request.Task)
-	if err != nil {
-		response.SetError(err)
-	}
+	response.SetError(err)
 	response.SetResult(result)
 }

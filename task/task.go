@@ -7,10 +7,10 @@ type Request struct {
 	Parser       Parser
 }
 
-func NewRequest(h Handler, task interface{},
+func NewRequest(handler Handler, task interface{},
 	responseChan chan *Response, parser Parser) *Request {
 	return &Request{
-		Handler:      h,
+		Handler:      handler,
 		Task:         task,
 		ResponseChan: responseChan,
 		Parser:       parser,
